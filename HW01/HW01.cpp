@@ -1,304 +1,680 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
+#include <cmath>
+#include <cctype>
+
 using namespace std;
 
-// define a token's type
-enum TokenType { NUMBER, OPERATOR, LPAREN, RPAREN };
+//弄一個類別
+enum TokenType {
+    NUMBER,     //數字
+    OPERATOR,   //運算子
+    LPAREN,     //左括號
+    RPAREN,     //右括號
+    IDENTIFIER  //識別名稱
+};
 
-// define a token
+//一個Token結構
 struct Token {
-    TokenType type;
-    string value;
+    TokenType type; //type就是上面的enum
+    string value;   //value是token的內容
 };
 
-// define a node within a TokenStack
+//TokenNode用來實作堆疊的節點
 struct TokenNode {
-    Token data;  // define the data of the node
-    TokenNode* next;   // point to the next node in the stack
+    Token data;         //上面定義的Token structure為data
+    TokenNode* next;    //next指向下一個TokenNode的指標
 };
 
-// make a stack with linked list, using TokenNodes
+//TokenStack是實作堆疊的類別
 class TokenStack {
 private:
-    TokenNode* top; // point to the top node of the stack
+    TokenNode* top;     //設一個private的指標變數top，指向堆疊頂端的TokenNode
+
 public:
-    TokenStack() { top = nullptr; } // initialize the stack
 
-    // push function: add a token to the top of the stack
-    void push(Token tok) {
-        TokenNode* newNode = new TokenNode; // create new node
-        newNode->data = tok;      // save token
-        newNode->next = top;      // new node points to next in stack(the old top)
-        top = newNode;            // update top node
+    //同名建構子，一執行此class就初始化
+    TokenStack() {
+        top = nullptr;      //top為nullptr，讓堆疊是空空ㄉ
     }
 
-    // pop function: remove and return top of the stack
+    //push function for 加入一個token到stack的top
+    void push(Token tok) {      //傳入一個型別為token structure的參數tok
+        TokenNode* newNode = new TokenNode;     //newNode來放新加入的token，new一個TokenNode物件
+        newNode->data = tok;    //把傳入的tok放到newNode的data裡
+        newNode->next = top;    //newNode的next指向原本的stack的top
+        top = newNode;          //top指向剛放進來的newNode，也就是新來的token
+    }
+
+    //pop function for 從stack的top取出一個token
     Token pop() {
-        if (isEmpty()) {
-            throw runtime_error("Syntax Error: Unexpected empty stack during evaluation.");
-        }                           // if stack is empty, throw error
-        Token tok = top->data;      // retrieve top token
-        TokenNode* temp = top;           // temporarily save top node
-        top = top->next;            // move top to new top
-        delete temp;                // free memory
-        return tok;                 // return popped token
-    }
-
-    // peek function: retrieve top value but don't remove node
-    Token peek() {
-        if (isEmpty()) { // if stack is empty, throw error
-            throw runtime_error("Syntax Error: Unexpected empty stack during evaluation.");
+        if (isEmpty()) {            //如果stack是空的，就報錯，因為沒東西可以pop
+            throw runtime_error("Syntax Error: Empty stack");
         }
-        return (top->data);
+
+        Token tok = top->data;      //把stack頂端的token存到tok變數裡
+
+        TokenNode* temp = top;      //用temp暫存目前的top，因為我們要刪除它
+        top = top->next;            //把top移到下一個TokenNode，因為原本的top要不見了
+
+        delete temp;                //刪除剛剛暫存在temp的top
+
+        return tok;                 //回傳上一個top的data，也就是我們pop出來的token
     }
 
-    // isEmpty function: check if stack is empty
+    //peek function for 偷看stack的top是什麼token但不pop
+    Token peek() {
+        if (isEmpty()) {
+            throw runtime_error("Syntax Error: Empty stack");
+        }
+
+        return top->data;   //回傳stack top的data
+    }
+
+    //檢查是不是空的function
     bool isEmpty() {
-        return top == nullptr;
+        return top == nullptr; //回傳top是nullptr
     }
 };
 
-// define a node within a ValueStack
+//一個ValueNode結構
 struct ValueNode {
-    double data;  // define the data of the node
-    ValueNode* next;   // point to the next node in the stack
+    double data;        //double型態的data
+    ValueNode* next;    //指向下一個valueNode的pointer
 };
 
-// make a stack with linked list, using ValueNodes
+//建立一個ValueStack class
 class ValueStack {
 private:
-    ValueNode* top; // point to the top node of the stack
-public:
-    ValueStack() { top = nullptr; } // initialize the stack
+    ValueNode* top;     //top指向stack頂端的valueNode
 
-    // push function: add a value to the top of the stack
-    void push(double val) {
-        ValueNode* newNode = new ValueNode; // create new node
-        newNode->data = val;      // save value
-        newNode->next = top;      // new node points to next in stack(the old top)
-        top = newNode;            // update top node
+public:
+    ValueStack() {
+        top = nullptr; //初始化top為nullptr，讓stack一開始是空的
     }
 
-    // pop function: remove and return top of the stack
+    //push函式
+    void push(double val) {
+        ValueNode* newNode = new ValueNode; //newNode來放新的value，new一個ValueNode物件
+        newNode->data = val;        //把傳入的val放到newNode的data裡
+        newNode->next = top;        //newNode的next指向原本的stack的top
+        top = newNode;          //top指向剛放進來的newNode，也就是新來的value
+    }
+
+    //pop函式
     double pop() {
         if (isEmpty()) {
-            throw runtime_error("Syntax Error: Unexpected empty stack during evaluation.");
-        }                           // if stack is empty, throw error
-        double val = top->data;     // retrieve top value
-        ValueNode* temp = top;      // temporarily save top node
-        top = top->next;            // move top to new top
-        delete temp;                // free memory
-        return val;                 // return popped value
-    }
-
-    // peek function: retrieve top value but don't remove node
-    double peek() {
-        if (isEmpty()) { // if stack is empty, throw error
-            throw runtime_error("Syntax Error: Unexpected empty stack during evaluation.");
+            throw runtime_error("Syntax Error: Empty value stack");
         }
-        return (top->data);
+
+        double val = top->data;     //在這邊定義一個val來放top的data(double value)
+        ValueNode* temp = top;      //用temp暫存目前的top，因為要刪除它
+        top = top->next;            //把top弄到下一個
+
+        delete temp;        //刪除temp，也就是刪除原本的top
+
+        return val;         //回傳val，也就是原本被刪除的top的data(double value)
     }
 
-    // isEmpty function: check if stack is empty
+    //看一下top的函式
+    double peek() {
+        if (isEmpty()) {    //stack is empty 就除錯
+            throw runtime_error("Syntax Error: Empty value stack");
+        }
+
+        return top->data;   //回傳top的data（double value）
+    }
+
+    //檢查stack是否為空
     bool isEmpty() {
-        return top == nullptr;
+        return top == nullptr;//回傳top是空值
     }
 };
 
-// reconstruct input into tokens
+//建立一個token的vector
 vector<Token> tokenize(const string& expression) {
+
     vector<Token> tokens;
+
     int i = 0;
     int n = expression.length();
 
     while (i < n) {
+
         char ch = expression[i];
 
-        // skip whitespace
+        //如果是空白鍵
         if (isspace(ch)) {
-            i++;
-            continue;
+            i++;        
+            continue; //就跳過
         }
 
-        // parse multi-digit numbers, decimals and negative numbers
-        // minus signs not part of a negative number will not be handled here
-        if (isdigit(ch) || ch == '.' || ch == '-') {
-            string numStr = "";
-            if (ch == '-' && !tokens.empty()) {     // if this is a minus sign and is not the first character
-                TokenType _ = tokens.back().type;   // retrieve last character's type
-                if (_ == LPAREN || _ == OPERATOR) { // if the last character is a left parentheses or an operator
-                    numStr += ch;                   // this is a negative number, add to string
-                    i++;
-                }
-            }
-            else if (ch == '-' && tokens.empty()) { // if this is a minus sign and the first character
-                numStr += ch;                       // this is a negative number, add to string
+        //如果是數字、點、負號且負號是合法的（在開頭或在運算子或左括號後面）
+        if (isdigit(ch) || ch == '.' || (ch == '-' && (tokens.empty() || tokens.back().type == OPERATOR ||tokens.back().type == LPAREN)))
+        {
+
+            string numStr;  //新變數numStr來存字串
+
+            //如果是負號
+            if (ch == '-') {
+                numStr += '-';   //字串加上負號
                 i++;
             }
-            if (expression[i] != '-') { // do not handle minus signs here
-                // keep adding characters to the string if it belongs to a number
-                while (i < n && (isdigit(expression[i]) || expression[i] == '.')) {
-                    numStr += expression[i];
-                    i++;
-                }
 
-                // push the complete number into vector
-                tokens.push_back({ NUMBER, numStr });
-                continue;
+            //繼續讀取數字和小數點，直到遇到非數字或非小數點的字元
+            while (i < n &&
+                  (isdigit(expression[i]) ||
+                   expression[i] == '.')) {
+
+                numStr += expression[i];    //全部弄進numStr裡  
+                i++;
             }
 
+            tokens.push_back({ NUMBER, numStr });   //把numStr放到token的value裡，type是NUMBER
+            continue;
         }
 
-        // handle parentheses
+        //如果是alpha或底線
+        if (isalpha(ch) || ch == '_') {
+
+            string varName;   //varName來存字串
+
+            //如果是合法的或是底線，就繼續弄！
+            while (i < n &&
+                  (isalnum(expression[i]) ||
+                   expression[i] == '_')) {
+
+                varName += expression[i];   //把弄到的都存進varName
+                i++;
+            }
+
+            tokens.push_back({ IDENTIFIER, varName });  //把varName放到token的value裡，type是IDENTIFIER
+            continue;
+        }
+
+        //如果是左括號
         if (ch == '(') {
-            tokens.push_back({ LPAREN, "(" });
+            tokens.push_back({ LPAREN, "(" });  //把左括號放到token的value裡，type是LPAREN
             i++;
             continue;
         }
+
+        //如果是右括號
         if (ch == ')') {
-            tokens.push_back({ RPAREN, ")" });
+            tokens.push_back({ RPAREN, ")" });  //把右括號放到token的value裡，type是RPAREN
             i++;
             continue;
         }
 
-        // handle operators
-        // minus signs not recognized as part of a negative number will be handled here
-        if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '^' || ch == '%') {
-            string opStr(1, ch); // convert char to string
-            tokens.push_back({ OPERATOR, opStr });
+        
+        if (i + 1 < n) {
+
+            string two = expression.substr(i, 2); //新的two字串是從expression的i位置開始的兩個字元
+
+            //如果two是以下運算子之一
+            if (two == "&&" ||
+                two == "||" ||
+                two == "==" ||
+                two == "!=" ||
+                two == "<=" ||
+                two == ">=" ||
+                two == "<<" ||
+                two == ">>" ||
+                two == "**") {
+
+                tokens.push_back({ OPERATOR, two });    //把two放到token的value裡，type是OPERATOR
+                i += 2; //然後把i往後移兩個字元，因為two是兩個字元的運算子
+                continue;
+            }
+        }
+
+        //如果是以下運算子
+        if (ch == '+' ||
+            ch == '-' ||
+            ch == '*' ||
+            ch == '/' ||
+            ch == '%' ||
+            ch == '<' ||
+            ch == '>' ||
+            ch == '&' ||
+            ch == '|' ||
+            ch == '^' ||
+            ch == '!' ||
+            ch == '~' ||
+            ch == '=') {
+
+            string opStr(1, ch);    //把ch轉成string放到opStr裡
+            tokens.push_back({ OPERATOR, opStr });  //把opStr放到token的value裡，type是OPERATOR
+
             i++;
             continue;
         }
 
-        // if character does not fulfill any of the above, throw error
-        throw runtime_error(string("Syntax Error: Invalid character encountered: ") + ch);
+        throw runtime_error(
+            string("Invalid character: ") + ch
+        );
     }
 
-    return tokens;
+    return tokens; //回傳token的vector
 }
 
-// evaluates tokenized expressions
+
+//建立一個ExpressionEvaluator的class
 class ExpressionEvaluator {
+
 private:
-    // precedence function: determines operator precedence
+
+    map<string, double> variables;  //一個map
+
+    //回傳運算子的優先權
     int precedence(const string& op) {
-        if (op == "+" || op == "-") return 1;
-        if (op == "*" || op == "/" || op == "%") return 2;
-        if (op == "^") return 3;
+
+        if (op == "=") return 0;
+
+        if (op == "||") return 1;
+
+        if (op == "&&") return 2;
+
+        if (op == "|") return 3;
+
+        if (op == "^") return 4;
+
+        if (op == "&") return 5;
+
+        if (op == "==" || op == "!=") return 6;
+
+        if (op == "<" ||
+            op == ">" ||
+            op == "<=" ||
+            op == ">=") return 7;
+
+        if (op == "<<" ||
+            op == ">>") return 8;
+
+        if (op == "+" ||
+            op == "-") return 9;
+
+        if (op == "*" ||
+            op == "/" ||
+            op == "%") return 10;
+
+        if (op == "**") return 11;
+
         return 0;
     }
 
-    // applyOperation function: safely applies operations, otherwise throws errors
-    double applyOperation(double a, double b, const string& op) {
+    //ab和運算子的運算結果
+    double applyOperation(double a,
+                          double b,
+                          const string& op) {
+
         if (op == "+") return a + b;
+
         if (op == "-") return a - b;
+
         if (op == "*") return a * b;
+
+        //如果是除法，要看b是不是0
         if (op == "/") {
-            if (b == 0) throw runtime_error("Error: Division by zero");
+
+            if (b == 0)
+                throw runtime_error("Division by zero");    //是的話報錯
+
             return a / b;
         }
+
+        //取餘數的話也是看b是不是0
         if (op == "%") {
-            if (b == 0) throw runtime_error("Error: Modulo by zero");
-            return (int)a % (int)b; // cast to integer for standard modulo
+
+            if ((int)b == 0)
+                throw runtime_error("Modulo by zero");  //是的話報錯
+
+            return (int)a % (int)b;
         }
-        if (op == "^") return pow(a, b);
-        throw runtime_error("Error: Unknown operator");
+
+        if (op == "**" || op == "^") {
+            return pow(a, b);
+        }
+
+        if (op == "<") return a < b;
+
+        if (op == ">") return a > b;
+
+        if (op == "<=") return a <= b;
+
+        if (op == ">=") return a >= b;
+
+        if (op == "==") return a == b;
+
+        if (op == "!=") return a != b;
+
+        if (op == "&&") return a && b;
+
+        if (op == "||") return a || b;
+
+        if (op == "&")
+            return (int)a & (int)b;
+
+        if (op == "|")
+            return (int)a | (int)b;
+
+        if (op == "^")
+            return (int)a ^ (int)b;
+
+        if (op == "<<")
+            return (int)a << (int)b;
+
+        if (op == ">>")
+            return (int)a >> (int)b;
+
+        throw runtime_error("Unknown operator");
     }
 
 public:
-    // infixToPostfix function: translates vector of infix tokens to vector of postfix tokens
-    vector<Token> infixToPostfix(const vector<Token>& infixTokens) {
+
+    //設定variable的函式
+    void setVariable(string name, double value) {
+        variables[name] = value; //讓name跟value弄在一起
+    }
+
+    //檢查是否有這個variable的函式
+    bool hasVariable(string name) {
+        return variables.find(name) != variables.end();  //回傳在map裡有沒有找到name這個key
+    }
+
+    //弄到variable的值的函式
+    double getVariable(string name) {
+
+        if (!hasVariable(name)) {       //如果沒有這個variable，就報錯
+            throw runtime_error(
+                "Undefined variable: " + name
+            );
+        }
+
+        return variables[name];
+    }
+
+    //infix轉postfix的函式
+    vector<Token> infixToPostfix(
+        const vector<Token>& infixTokens) {
+
         vector<Token> postfix;
+
         TokenStack stack;
-        
-        for (Token tok : infixTokens) { // loop through all of infix
-            if (tok.type == NUMBER) { // determine if current character is a number
-                postfix.push_back(tok); // put directly into postfix
+
+        for (Token tok : infixTokens) {
+
+            //type是NUMBER或IDENTIFIER，就直接放到postfix裡
+            if (tok.type == NUMBER ||
+                tok.type == IDENTIFIER) {
+
+                postfix.push_back(tok);
             }
-            else if (tok.type == LPAREN) { // put ( directly into stack
+
+            //如果是左括號，就放到stack裡
+            else if (tok.type == LPAREN) {
+
                 stack.push(tok);
             }
+
+            //如果是右括號，就從stack裡拿出來放到postfix裡，直到遇到左括號
             else if (tok.type == RPAREN) {
-                while (!stack.isEmpty() && stack.peek().value != "(") { // pop until (
-                    postfix.push_back(stack.pop()); // put popped into postfix
+
+                while (!stack.isEmpty() &&
+                       stack.peek().value != "(") {
+
+                    postfix.push_back(stack.pop());
                 }
-                stack.pop(); // pop ( without putting into postfix
+
+                if (!stack.isEmpty())
+                    stack.pop();
             }
-            else { //  process +-*/
-                while (!stack.isEmpty() && precedence(stack.peek().value) >= precedence(tok.value)) { // check precedence
-                    postfix.push_back(stack.pop()); // pop into postfix
+
+            //如果是OPERATOR，就從stack裡拿出來放到postfix裡，直到遇到優先權較低的運算子或左括號，然後把這個運算子放到stack裡
+            else if (tok.type == OPERATOR) {
+
+                while (!stack.isEmpty() &&
+                       stack.peek().type == OPERATOR &&
+                       precedence(stack.peek().value)
+                       >= precedence(tok.value)) {
+
+                    postfix.push_back(stack.pop());
                 }
-                stack.push(tok); // push current into stack
+
+                stack.push(tok);
             }
         }
-        // pop all remaining characters in stack
+
+        //最後把stack裡剩下的運算子都弄到postfix裡
         while (!stack.isEmpty()) {
             postfix.push_back(stack.pop());
         }
-         // debugging :P
-        for (Token _ : postfix) {
-            cout << _.value << " ";
-        }
-        cout << endl;
+
         return postfix;
     }
 
-    // evaluatePostfix function: evaluates vector of postfix tokens and prints process
-    double evaluatePostfix(const vector<Token>& postfixTokens) {
+    //評估postfix的函式
+    double evaluatePostfix(
+        const vector<Token>& postfixTokens) {
+
         ValueStack stack;
 
         for (Token tok : postfixTokens) {
-            if (tok.type == NUMBER) {        // if token is a number
-                stack.push(stod(tok.value)); // push value as a double into stack
+
+            //如果是NUMBER，就把它的值轉成double放到stack裡
+            if (tok.type == NUMBER) {
+
+                stack.push(stod(tok.value));
             }
-            else if (tok.type == OPERATOR) { // if token is an operator, attempt applying operation
-                // if there are no numbers left in stack, throw error, otherwise retrieve second number in operation
-                if (stack.isEmpty()) throw runtime_error("Error: Invalid Expression");
+
+            //如果是IDENTIFIER，就呼叫弄到值的函式，把值放到stack裡
+            else if (tok.type == IDENTIFIER) {
+
+                stack.push(getVariable(tok.value));
+            }
+
+            //如果是OPERATOR，就從stack裡拿出來兩個值，做運算，然後把結果放回stack裡
+            else if (tok.type == OPERATOR) {
+
+                //如果是！或是～，就只需要拿出來一個值，做運算，然後把結果放回stack裡
+                if (tok.value == "!" ||
+                    tok.value == "~") {
+
+                    if (stack.isEmpty()) {
+                        throw runtime_error(
+                            "Invalid expression"
+                        );
+                    }
+
+                    double a = stack.pop();
+
+                    double result;
+
+                    if (tok.value == "!") {
+                        result = !a;
+                    }
+                    else {
+                        result = ~(int)a;
+                    }
+
+                    stack.push(result);
+
+                    cout << "[Step] "
+                         << tok.value
+                         << a
+                         << " = "
+                         << result
+                         << endl;
+
+                    continue;
+                }
+
+                //如果stack是空的就報錯，因為沒東西可以pop
+                if (stack.isEmpty()) {
+                    throw runtime_error(
+                        "Invalid expression"
+                    );
+                }
+
+
+                //先pop出來的值是b，後pop出來的值是a，因為在postfix裡面a在b前面
+                //b是右邊ㄉ，a是左邊ㄉ
                 double b = stack.pop();
 
-                // if there was only one number left in stack, throw error, otherwise retrieve first number in operation
-                if (stack.isEmpty()) throw runtime_error("Error: Invalid Expression");
+                if (stack.isEmpty()) {
+                    throw runtime_error(
+                        "Invalid expression"
+                    );
+                }
+
                 double a = stack.pop();
 
-                // attempt to apply operation and push result back into stack
-                double result = applyOperation(a, b, tok.value);
-                stack.push(result);
+                //result等於呼叫applyOperation的函式所回傳的結果
+                double result =
+                    applyOperation(a, b, tok.value);
 
-                // print process if successful
-                cout << "[Step] " << a << " " << tok.value << " " << b << " = " << result << endl;
+                stack.push(result); //把結果弄進stack
+
+                cout << "[Step] "
+                     << a
+                     << " "
+                     << tok.value
+                     << " "
+                     << b
+                     << " = "
+                     << result
+                     << endl;
             }
         }
-        // if there is nothing in stack, throw error, otherwise return result
-        if (stack.isEmpty()) throw runtime_error("Error: Invalid Expression");
+
+        if (stack.isEmpty()) {
+            throw runtime_error(
+                "Invalid expression"
+            );
+        }
+
         return stack.pop();
     }
 };
 
 int main() {
+
     ExpressionEvaluator calculator;
+
     string input;
 
-    cout << "=== Stack-Based Expression Calculator ===\n";
     while (true) {
-        cout << "\nEnter an expression (or 'exit' to quit): ";
+
+        cout << "\nEnter expression (or exit): ";
+
         getline(cin, input);
 
-        if (input == "exit") break;
-        if (input.empty()) continue;
+        if (input == "exit") {
+            break;
+        }
+
+        if (input.empty()) {
+            continue;
+        }
 
         try {
-            cout << "Attempting tokenization...\n";
-            vector<Token> infix = tokenize(input);
-            cout << "Translating infix to postfix...\n";
-            vector<Token> postfix = calculator.infixToPostfix(infix);
-            cout << "\n--- Evaluation Steps ---\n";
-            double finalResult = calculator.evaluatePostfix(postfix);
 
-            cout << "\nFinal Answer: " << finalResult << endl;
+            //找等號的位置
+            size_t eqPos = input.find('=');
+
+            //如果有等號，且不是比較運算子，就當作是ASSIGNMENT
+            bool isAssignment =
+                (eqPos != string::npos) &&
+                (input.find("==") == string::npos);
+
+            //如果是ASSIGNMENT
+            if (isAssignment) {
+
+                //把等號前面的當作變數名稱
+                string varName =
+                    input.substr(0, eqPos);
+
+                //把等號後面的當作表達式
+                string expr =
+                    input.substr(eqPos + 1);
+
+                //把變數名稱裡的空白鍵去掉，因為變數名稱不能有空白鍵
+                string cleanVar;
+
+                //把varName的字元都檢查一遍，如果不是空白鍵，就放到cleanVar裡
+                for (char c : varName) {
+                    if (!isspace(c)) {
+                        cleanVar += c;
+                    }
+                }
+
+                //把表達式弄成infix的token vector
+                vector<Token> infix =
+                    tokenize(expr);
+
+                //把infix轉成postfix的token vector
+                vector<Token> postfix =
+                    calculator.infixToPostfix(infix);
+
+                cout << "\nPostfix: ";
+
+                for (Token t : postfix) {
+                    cout << t.value << " ";
+                }
+
+                cout << endl;
+
+                cout << "\n--- Evaluation Steps ---\n";
+
+                //result等於呼叫evaluatePostfix的函式所回傳的結果
+                double result =
+                    calculator.evaluatePostfix(postfix);
+
+                calculator.setVariable(cleanVar,
+                                       result);
+
+                cout << "\n"
+                     << cleanVar
+                     << " = "
+                     << result
+                     << endl;
+
+                continue;
+            }
+
+            //infix等於呼叫tokenize的函式所回傳的結果
+            vector<Token> infix =
+                tokenize(input);
+
+            //postfix等於呼叫infixToPostfix的函式所回傳的結果
+            vector<Token> postfix =
+                calculator.infixToPostfix(infix);
+
+            cout << "\nPostfix: ";
+
+            for (Token t : postfix) {
+                cout << t.value << " ";
+            }
+
+            cout << endl;
+
+            cout << "\n--- Evaluation Steps ---\n";
+
+            double result =
+                calculator.evaluatePostfix(postfix);
+
+            cout << "\nFinal Answer: "
+                 << result
+                 << endl;
         }
-        catch (const exception& e) { // handle 
-            cerr << e.what() << endl;
+
+        catch (const exception& e) {
+
+            cerr << "\nERROR: "
+                 << e.what()
+                 << endl;
         }
     }
 
